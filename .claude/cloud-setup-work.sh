@@ -1,75 +1,45 @@
 #!/usr/bin/env bash
 # ============================================================================
-# Cloud environment setup — WORK edition (xceptor-engineering), v2
+# Cloud environment setup — WORK edition (xceptor-engineering), v3
 #
-# Paste into: claude.ai/code -> environment -> Setup script (work account).
-# Runs inside Anthropic's cloud VM (Ubuntu 24.04) — NOT on your machine.
-# Work-machine SSO (gh/az login) does NOT propagate here.
+# Paste into: claude.ai/code -> environment -> Setup script.
+# Runs at environment BUILD time, before Claude Code launches.
 #
-# v2 changes:
-#   - All output tee'd to ~/cloud-setup.log (UI logs can't be expanded;
-#     run `cat ~/cloud-setup.log` in any session for the full build log)
-#   - No hard abort: each section warns and continues (v1's set -e could
-#     kill the plugin install if an earlier apt/az step hiccuped)
-#   - If the session repo IS the marketplace (ai-pdlc), it is copied from
-#     the working tree — no network or auth needed at all
+# IMPORTANT (verified 2026-06-04): the setup script does NOT receive the
+# environment's configured Environment variables — they are injected only
+# into the interactive session shell. So the setup script CANNOT use a token
+# to clone private repos. The xceptor plugin install therefore does NOT live
+# here anymore. The plugin is installed by the native marketplace bootstrap
+# in .claude/settings.json, which reads GH_TOKEN in-session at startup.
 #
-# Environment variables (set on the environment, never here):
-#   GH_PAT                  fine-grained PAT, read-only Contents on
-#                           xceptor-engineering/ai-pdlc — only needed if the
-#                           log shows the proxy-credential clone was denied
-#   AZURE_DEVOPS_EXT_PAT    ADO PAT for az boards (state-guard hook)
-#   AI_PDLC_OTLP_ENDPOINT   optional Grafana OTLP target for usage telemetry
+# This script's job is just the TOOLCHAIN (needs no secrets, cacheable):
+#   gh, .NET SDK 8 (ai-pdlc dotnet hooks), Azure CLI + azure-devops ext.
 #
-# Network access: Custom (incl. Trusted defaults) + dev.azure.com,
-#   packages.microsoft.com, aka.ms, azurecliprod.blob.core.windows.net
+# Set on the ENVIRONMENT (not here):
+#   GH_TOKEN              GitHub token the plugin auto-update reads to fetch
+#                         the private xceptor-engineering/ai-pdlc marketplace
+#   AZURE_DEVOPS_EXT_PAT  ADO token for the userstory-state-guard hook
+# Network: Custom + dev.azure.com, packages.microsoft.com, aka.ms,
+#   azurecliprod.blob.core.windows.net
 # ============================================================================
 
 set -uo pipefail
 exec > >(tee -a "$HOME/cloud-setup.log") 2>&1
-echo "===== cloud-setup-work v2.1 (GH_PAT enabled) — build started ====="
+echo "===== cloud-setup-work v3 (toolchain only) — build started ====="
 export DEBIAN_FRONTEND=noninteractive
 if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
 
-echo "=== [1/4] ai-pdlc marketplace + xceptor plugin (critical path, runs first) ==="
-MP_DIR="$HOME/marketplaces/ai-pdlc"
-rm -rf "$MP_DIR"; mkdir -p "$HOME/marketplaces"
-if [ -f "./.claude-plugin/marketplace.json" ] && grep -q '"xceptor"' "./.claude-plugin/marketplace.json" 2>/dev/null; then
-  cp -r "$(pwd)" "$MP_DIR"
-  echo "RESULT: session repo IS the marketplace — copied from working tree (no auth needed)"
-elif git clone --depth 1 https://github.com/xceptor-engineering/ai-pdlc.git "$MP_DIR" 2>/dev/null; then
-  echo "RESULT: proxy credential covers org repos — NO GitHub PAT needed"
-elif [ -n "${GH_PAT:-}" ] && git clone --depth 1 "https://x-access-token:${GH_PAT}@github.com/xceptor-engineering/ai-pdlc.git" "$MP_DIR"; then
-  git -C "$MP_DIR" remote set-url origin https://github.com/xceptor-engineering/ai-pdlc.git  # scrub PAT
-  echo "RESULT: proxy credential insufficient — cloned via GH_PAT fallback"
-else
-  echo "RESULT: WARN — cannot obtain ai-pdlc (working tree: no, proxy clone: denied, GH_PAT: ${GH_PAT:+set-but-failed}${GH_PAT:-unset}). xceptor plugin will be UNAVAILABLE."
-fi
-
-if [ -d "$MP_DIR" ]; then
-  if command -v claude >/dev/null 2>&1; then
-    claude plugin marketplace add "$MP_DIR" || echo "WARN: marketplace add failed"
-    claude plugin install xceptor@xceptor-pdlc || echo "WARN: plugin install failed"
-    claude plugin list || true
-  else
-    echo "WARN: claude CLI not on PATH at env-build time — plugin not installed. In-session fallback: claude plugin marketplace add ~/marketplaces/ai-pdlc && claude plugin install xceptor@xceptor-pdlc"
-  fi
-fi
-
-echo "=== [2/4] apt update + gh + .NET SDK 8 ==="
+echo "=== [1/3] apt + gh + .NET SDK 8 ==="
 $SUDO apt-get update -y || echo "WARN: apt update failed"
 command -v gh >/dev/null 2>&1 || $SUDO apt-get install -y gh || echo "WARN: gh install failed"
-# Needed by ai-pdlc pre-commit/post-edit hooks on C# repos (no-op without .sln)
 command -v dotnet >/dev/null 2>&1 || $SUDO apt-get install -y dotnet-sdk-8.0 || echo "WARN: dotnet install failed"
 
-echo "=== [3/4] Azure CLI ==="
-if ! command -v az >/dev/null 2>&1; then
-  curl -sL https://aka.ms/InstallAzureCLIDeb | $SUDO bash || echo "WARN: az install failed"
-fi
+echo "=== [2/3] Azure CLI ==="
+command -v az >/dev/null 2>&1 || curl -sL https://aka.ms/InstallAzureCLIDeb | $SUDO bash || echo "WARN: az install failed"
 
-echo "=== [4/4] azure-devops extension ==="
+echo "=== [3/3] azure-devops extension ==="
 if command -v az >/dev/null 2>&1; then
-  az extension show --name azure-devops >/dev/null 2>&1 || az extension add --name azure-devops || echo "WARN: azure-devops extension install failed"
+  az extension show --name azure-devops >/dev/null 2>&1 || az extension add --name azure-devops || echo "WARN: az-devops ext failed"
 fi
 
 echo "===== Setup complete — tool versions ====="
@@ -78,4 +48,4 @@ command -v claude >/dev/null 2>&1 && claude --version || echo "claude CLI: missi
 gh --version 2>/dev/null | head -1 || echo "gh: missing"
 dotnet --version 2>/dev/null || echo "dotnet: missing"
 az version 2>/dev/null | head -1 || echo "az: missing"
-echo "Full log: ~/cloud-setup.log"
+echo "NOTE: xceptor plugin is installed by native bootstrap (settings.json + GH_TOKEN), not here. Full log: ~/cloud-setup.log"
