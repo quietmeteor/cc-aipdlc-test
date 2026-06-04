@@ -1,0 +1,11 @@
+{
+  "extraKnownMarketplaces": {
+    "xceptor-pdlc": {
+      "source": "github",
+      "repo": "xceptor-engineering/ai-pdlc"
+    }
+  },
+  "enabledPlugins": {
+    "xceptor@xceptor-pdlc": true
+  }
+}
