@@ -3,9 +3,14 @@
     "xceptor-pdlc": {
       "source": "github",
       "repo": "xceptor-engineering/ai-pdlc"
+    },
+    "cc-test": {
+      "source": "github",
+      "repo": "quietmeteor/cc-aipdlc-test"
     }
   },
   "enabledPlugins": {
-    "xceptor@xceptor-pdlc": true
+    "xceptor@xceptor-pdlc": true,
+    "cloud-probe@cc-test": true
   }
 }
