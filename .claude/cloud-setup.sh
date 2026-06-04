@@ -48,6 +48,34 @@ az extension show --name azure-devops >/dev/null 2>&1 || az extension add --name
 # hard default for the pilot:
 # az devops configure --defaults organization=https://dev.azure.com/xceptor project="AI PDLC"
 
+echo "=== [5/5] Claude Code plugins — explicit install ==="
+# Cloud sessions do NOT bootstrap repo-declared extraKnownMarketplaces from
+# .claude/settings.json (verified 2026-06-04: ~/.claude/plugins is never
+# created in cloud VMs). Install explicitly here instead — this runs at
+# environment build, so the cached snapshot gives every session the plugins
+# pre-installed at user scope.
+if command -v claude >/dev/null 2>&1; then
+  # Public probe marketplace (diagnostic)
+  claude plugin marketplace add quietmeteor/cc-test-marketplace || true
+  claude plugin install cloud-probe@cc-test || true
+
+  # Private ai-pdlc marketplace — needs GH_PAT env var (repo:read scope) set
+  # on the cloud environment. Cloned manually because bootstrap/proxy creds
+  # don't cover repos outside the session repo.
+  if [ -n "${GH_PAT:-}" ]; then
+    rm -rf "$HOME/marketplaces/ai-pdlc"
+    git clone --depth 1 "https://x-access-token:${GH_PAT}@github.com/xceptor-engineering/ai-pdlc.git" "$HOME/marketplaces/ai-pdlc"
+    git -C "$HOME/marketplaces/ai-pdlc" remote set-url origin "https://github.com/xceptor-engineering/ai-pdlc.git"  # scrub PAT from .git/config
+    claude plugin marketplace add "$HOME/marketplaces/ai-pdlc" || true
+    claude plugin install xceptor@xceptor-pdlc || true
+  else
+    echo "GH_PAT not set — skipping private xceptor-pdlc marketplace install"
+  fi
+  claude plugin list || true
+else
+  echo "claude CLI not found at setup time — install plugins in-session instead"
+fi
+
 echo "=== Setup complete — tool versions ==="
 node --version
 gh --version | head -1
