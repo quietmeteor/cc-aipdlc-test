@@ -25,10 +25,28 @@ GitHub-integrated workflow from Chris's demo.
 
 ## What's wired in this repo
 
-- `.claude/settings.json` — declares the `xceptor-pdlc` marketplace and
-  enables `xceptor@xceptor-pdlc`. Cloud sessions install repo-declared
-  plugins at session start. **Must be committed to the branch the cloud
-  session checks out** (merge to the default branch so every session gets it).
+- `.claude/settings.json` — declares the `xceptor-pdlc` + `cc-test`
+  marketplaces and enables both plugins. Kept for local sessions and for
+  when the cloud bootstrap gap (below) is fixed upstream.
+- `.claude/cloud-setup.sh` §5 — **the mechanism that actually works in
+  cloud**: explicit `claude plugin marketplace add` + `claude plugin install`
+  at environment build; private ai-pdlc cloned via `GH_PAT` env var and
+  registered as a local-path marketplace.
+
+## Verified findings (2026-06-04)
+
+1. **Cloud sessions do NOT bootstrap repo-declared `extraKnownMarketplaces`**
+   from `.claude/settings.json` — `~/.claude/plugins/` is never created,
+   public or private, App access or not. Contradicts the docs' "installed at
+   session start". Report upstream (related: anthropics/claude-code#9756).
+2. **The `claude plugin` CLI works inside the cloud VM** (non-interactive,
+   no trust prompt, user scope) — verified via `/cloud-probe:ping`:
+   `remote=true user=root`, plugin loaded and skill invocable.
+3. **Persistence rule**: mid-session installs die with the session. Installs
+   in the **setup script** land in the cached environment snapshot and are
+   present in every fresh session.
+4. Local control test passes for both marketplaces (incl. private ai-pdlc)
+   — the failure is cloud-bootstrap-specific, not a config problem.
 
 ## Verification checklist (run in a cloud session)
 
