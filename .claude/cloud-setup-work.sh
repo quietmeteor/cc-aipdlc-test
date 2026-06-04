@@ -27,7 +27,7 @@
 
 set -uo pipefail
 exec > >(tee -a "$HOME/cloud-setup.log") 2>&1
-echo "===== cloud-setup-work v2 — build started ====="
+echo "===== cloud-setup-work v2.1 (GH_PAT enabled) — build started ====="
 export DEBIAN_FRONTEND=noninteractive
 if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
 
