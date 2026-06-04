@@ -47,6 +47,19 @@ GitHub-integrated workflow from Chris's demo.
    present in every fresh session.
 4. Local control test passes for both marketplaces (incl. private ai-pdlc)
    — the failure is cloud-bootstrap-specific, not a config problem.
+5. **(2026-06-04, work account, session on `ai-agent-service`)** The cloud
+   VM's GitHub proxy credential is **strictly session-repo-scoped**: cloning
+   a sibling org repo (`xceptor-engineering/ai-pdlc`) is DENIED even with
+   the Claude GitHub App installed org-wide. Cross-repo private marketplace
+   fetch therefore always needs an explicit token (`GH_PAT`, fine-grained,
+   read-only Contents) — by design, not a bug. Work-machine SSO never
+   propagates to the VM.
+6. The `claude` CLI (2.1.162) IS available at env-build time — setup-script
+   plugin installs are viable. Toolchain confirmed in cloud: Node 22,
+   .NET SDK 8.0.127, gh 2.45, az 2.87.
+7. **Cache gotcha**: changing environment *variables* may not invalidate the
+   cached snapshot — touch the setup script (e.g. bump a version comment)
+   to force a rebuild after adding `GH_PAT`.
 
 ## Verification checklist (run in a cloud session)
 
