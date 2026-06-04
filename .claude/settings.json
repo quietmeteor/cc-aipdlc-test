@@ -6,7 +6,7 @@
     },
     "cc-test": {
       "source": "github",
-      "repo": "quietmeteor/cc-aipdlc-test"
+      "repo": "quietmeteor/cc-test-marketplace"
     }
   },
   "enabledPlugins": {
