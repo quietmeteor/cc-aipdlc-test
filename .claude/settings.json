@@ -3,14 +3,21 @@
     "xceptor-pdlc": {
       "source": "github",
       "repo": "xceptor-engineering/ai-pdlc"
-    },
-    "cc-test": {
-      "source": "github",
-      "repo": "quietmeteor/cc-test-marketplace"
     }
   },
   "enabledPlugins": {
-    "xceptor@xceptor-pdlc": true,
-    "cloud-probe@cc-test": true
+    "xceptor@xceptor-pdlc": true
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/install-xceptor.sh\""
+          }
+        ]
+      }
+    ]
   }
 }
